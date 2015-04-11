@@ -1,10 +1,12 @@
+#!/usr/bin/env node
+
 var fs = require('fs');
 var cp = require('child_process');
 
 var request = require('request');
 var blessed = require('blessed');
 
-process.title = 'streams';
+process.title = 'twitch';
 
 var screen = blessed.screen({
   log: process.env.HOME + '/blessed.log',
@@ -143,7 +145,7 @@ var list = blessed.list({
 //  height: '50%',
 //  top: 'center',
 //  left: 'center',
-  left: 0,
+  left: 1,
   top: 0,
   right: 0,
   bottom: 0,
@@ -179,7 +181,7 @@ list.on('select', function(el, i) {
   var item = items[el.getText().split(' ')[0]];
   if (!item) return;
   var url = 'http://twitch.tv/' + item.name;
-  var args = ['--player', 'mpv', url, 'best']
+  var args = ['--player', 'mpv', url, 'best'];
   cp.spawn('livestreamer', args, { 
     stdio: 'ignore',
     detached: true 
