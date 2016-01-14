@@ -6,7 +6,7 @@ var cp = require('child_process');
 var request = require('request');
 var blessed = require('blessed');
 
-process.title = 'twitch';
+process.title = 'tuitch';
 
 var screen = blessed.screen({
   log: process.env.HOME + '/blessed.log',
@@ -14,11 +14,29 @@ var screen = blessed.screen({
   fastCSR: true
 });
 
-var names = fs.readFileSync('../namelist','utf8').trim().split('\n');
+var names = fs.readFileSync('../namelist', 'utf8').split('\n').map(function(value, index, arr) {
+  return value.trim();
+}).filter(function(value, index, arr) {
+  if (value === '' || value[0] === '#') {
+    return false;
+  } else {
+    return true;
+  }
+});
 
+// Twitch API URLs have a max character limit of 7645
+// Twitch usernames have a max character limit of 25 - (28 chars include escaped comma for each name)
+// Escaped commas are 3 chars: %2C
+// 'https://api.twitch.tv/kraken/streams' 36 chars
+// '?channel=' '&limit=100' '&offset=' '0'-'900' - 30 chars
+// 7645 - 36 - 30 = 7579
+// 7579 / 28 = 270.67857...
+// Average name length in my name file is around ~9 chars
+// So 7579 / 12 = 631.58...
+// So we use 500 instead of something like 270 to minimize the amount of queries needed
 var chunks = [];
-for (var i = 0; i < names.length; i += 658) {
-  chunks.push(names.slice(i, i + 658));
+for (var i = 0; i < names.length; i += 500) {
+  chunks.push(names.slice(i, i + 500));
 }
 
 var items = {};
@@ -106,50 +124,30 @@ function refresh() {
       var sep = '{white-fg} - {/white-fg}';
       return data.name 
         + ' {cyan-fg}(' + data.viewers + '){/cyan-fg}'
-//        + sep 
         + '{|}'
         + '{yellow-fg}' + data.status + '{/yellow-fg}'
         + sep 
-//        + '{|}'
         + '{green-fg}' + data.game + '{/green-fg}';
     });
+    listItems.sort();
     list.setItems(listItems);
     screen.render();
   });
 }
 
-//(function next() {
-//  return refresh(function(err) {
-//    return setTimeout(next, 60 * 1000);
-//  });
-//})();
-
 (function next() {
   refresh();
-  return setTimeout(next, 60 * 1000);
+  return setTimeout(next, 4 * 60 * 1000);
 })();
 
 var list = blessed.list({
   parent: screen,
-//  label: 'Streams',
   align: 'left',
   mouse: true,
-  //fg: 'blue',
-  //bg: 'default',
-//  border: {
-//    type: 'line',
-//    fg: 'default',
-//    bg: 'default'
-//  },
-//  width: '50%',
-//  height: '50%',
-//  top: 'center',
-//  left: 'center',
   left: 1,
   top: 0,
   right: 0,
   bottom: 0,
-  //selectedBg: 'green',
   style: {
     fg: 'blue',
     bg: 'default',
@@ -181,7 +179,7 @@ list.on('select', function(el, i) {
   var item = items[el.getText().split(' ')[0]];
   if (!item) return;
   var url = 'http://twitch.tv/' + item.name;
-  var args = ['--player', 'mpv', url, 'best'];
+  var args = ['--player', 'mpv --geometry 1280x720+50%+50%', url, 'best'];
   cp.spawn('livestreamer', args, { 
     stdio: 'ignore',
     detached: true 
@@ -196,7 +194,5 @@ screen.key('q', function() {
 });
 
 screen.key('r', function() {
-//  list.setItems(['Loading...']);
-//  screen.render();
   refresh();
 });
